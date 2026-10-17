@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corporate OPD Wallet Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky input rail on the left, P&L ledger and tests on the right; stacks on phones. */
+:root{
+  --bg:#F1F3F0; --surface:#FFFFFF; --surface2:#F6F8F5; --line:#D5DBD3; --line2:#E6EAE3;
+  --ink:#14201B; --soft:#4F5F57; --faint:#7F8F86;
+  --accent:#0F6B5C; --accent-ink:#FFFFFF; --accent-soft:#DFEEE9;
+  --amber:#9A5B00; --amber-soft:#FBEBD0;
+  --pos:#1F7A43; --pos-soft:#E1F2E7; --neg:#B3321F; --neg-soft:#FAE5E0;
+  --display:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1411; --surface:#121C18; --surface2:#17231E; --line:#26362F; --line2:#1D2B25;
+  --ink:#E6EEEA; --soft:#A2B4AB; --faint:#72857B;
+  --accent:#46B8A3; --accent-ink:#06211B; --accent-soft:#143A32;
+  --amber:#E2A545; --amber-soft:#33260E; --pos:#55C282; --pos-soft:#133423; --neg:#EE7C68; --neg-soft:#3A1D16; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1411; --surface:#121C18; --surface2:#17231E; --line:#26362F; --line2:#1D2B25;
+  --ink:#E6EEEA; --soft:#A2B4AB; --faint:#72857B;
+  --accent:#46B8A3; --accent-ink:#06211B; --accent-soft:#143A32;
+  --amber:#E2A545; --amber-soft:#33260E; --pos:#55C282; --pos-soft:#133423; --neg:#EE7C68; --neg-soft:#3A1D16; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--display);margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--surface);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:12px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;max-width:1400px;margin:0 auto}
+h1{font-size:19px;margin:0;letter-spacing:-.01em}
+.btn{font:600 12.5px var(--display);border:1px solid var(--line);background:var(--surface);color:var(--soft);padding:7px 12px;border-radius:8px;cursor:pointer}
+.btn:hover{color:var(--ink);border-color:var(--faint)}
+.tabs{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.tabs button{font:600 12.5px var(--display);border:0;background:transparent;color:var(--soft);padding:7px 13px;border-radius:7px;cursor:pointer}
+.tabs button.on{background:var(--accent);color:var(--accent-ink)}
+.layout{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px;max-width:1400px;margin:18px auto 0;align-items:start}
+@media(max-width:940px){.layout{grid-template-columns:1fr}.rail{position:static!important;max-height:none!important}}
+.rail{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.grp{padding:14px 16px;border-bottom:1px solid var(--line2)}.grp:last-child{border:0}
+.grp>.eyebrow{display:block;margin-bottom:10px}
+.f{margin-bottom:12px}.f:last-child{margin-bottom:0}
+.fl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:600;margin-bottom:4px}
+.fl small{font-weight:400;color:var(--faint);font-size:11px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.in{display:flex;align-items:center;gap:6px}
+.in input[type=number]{width:100%;min-width:0;font:12.8px var(--mono);background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--ink)}
+.in .u{font-size:11.5px;color:var(--faint);white-space:nowrap}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;background:var(--line);margin:8px 0 0;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--accent)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+select{font:12.8px var(--display);background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:11.5px;color:var(--soft);background:var(--surface2);border:1px dashed var(--line);border-radius:7px;padding:6px 8px;margin-top:6px}
+.note.warn{background:var(--amber-soft);border-color:transparent;color:var(--amber)}
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.kpi .v{font:600 20px var(--mono)}.kpi .s{font-size:11.5px;color:var(--soft)}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.ch{padding:13px 16px;border-bottom:1px solid var(--line2)}
+.ch h2{margin:0;font-size:15px}.ch p{margin:2px 0 0;color:var(--soft);font-size:12px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 16px;font-size:13px;border-bottom:1px solid var(--line2);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-weight:700;background:var(--surface2);font-size:12px}
+td.l{color:var(--soft)}
+tr.sub td{font-weight:600;background:var(--surface2)}
+tr.net td{font-weight:700;font-size:14px;border-top:2px solid var(--line);background:var(--surface2)}
+td.m,th.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+.pad{padding:14px 16px}
+.pad p{margin:0 0 8px;color:var(--soft);font-size:13px;max-width:70ch}
+.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
+.chip.g{background:var(--pos-soft);color:var(--pos)}.chip.r{background:var(--neg-soft);color:var(--neg)}.chip.a{background:var(--amber-soft);color:var(--amber)}
+svg text{fill:var(--soft);font:11px var(--mono)}
+.tcell{white-space:normal!important;text-align:left!important;min-width:150px;font-size:12.5px;color:var(--soft)}
+.tcell b{color:var(--ink)}
+</style>
+
+</head>
+<body>
+<header>
+  <div><span class="eyebrow">Corporate health benefits</span><h1>Corporate OPD Wallet Simulator</h1></div>
+  <div class="tabs" role="tablist">
+    <button id="t-sim" class="on" onclick="tab('sim')">P&amp;L simulator</button>
+    <button id="t-types" onclick="tab('types')">Product types</button>
+  </div>
+  <button class="btn" onclick="resetAll()">Reset to defaults</button>
+</header>
+
+<div class="layout" id="v-sim">
+<aside class="rail" id="rail"></aside>
+<main class="main" id="out"></main>
+</div>
+
+<div class="layout" id="v-types" hidden style="grid-template-columns:minmax(0,1fr)">
+<main class="main" id="types"></main>
+</div>
+
+<script>
+const DEF={F:10000,P:5000,incl:0,gst:0,N:1000,
+ lp:3000,ld:3000,lc:3000,la:1000,
+ up:60,ud:60,uc:60,ua:50,
+ gp:0,gd:0,gc:0,ga:0,
+ mp:22,md:18,dsP:0,dsD:0,mc:30,ma:45,basis:'ex',
+ gpMode:'paid',gpUnl:4,gpWorst:12,gpPrice:500,gpCost:40,spPrice:800,spCost:250,spMode:'top',spUsed:3,spCap:10,virt:3,
+ plat:150,dist:8,target:10,vPrice:300,s1:40,s2:60,s3:80,s4:100,worstVirt:24,parF:5000};
+let S={...DEF};
+const FIELDS=[
+ ['Wallet &amp; price',[
+  ['F','Wallet face value','₹',1000,30000,500,'Value the member can spend'],
+  ['P','Customer pays','₹',1000,30000,250,'Price of the wallet'],
+  ['N','Wallets sold','',100,50000,100,'Employees enrolled']]],
+ ['Bucket limits (₹ of face value)',[
+  ['lp','Pharma','₹',0,10000,250,''],['ld','Diagnostics','₹',0,10000,250,''],
+  ['lc','Physical consult','₹',0,10000,250,''],['la','AHC package','₹',0,5000,250,'']]],
+ ['Expected utilisation (% of each limit)',[
+  ['up','Pharma','%',0,150,1,''],['ud','Diagnostics','%',0,150,1,''],
+  ['uc','Physical consult','%',0,150,1,''],['ua','AHC package','%',0,150,1,'']]],
+ ['Margins (your numbers)',[
+  ['mp','Pharma margin','%',0,60,0.5,'Illustrative'],['md','Diagnostics margin','%',0,60,0.5,'Illustrative'],
+  ['mc','GP consult margin (physical)','%',0,80,0.5,'Assumption, set yours'],
+  ['dsP','Pharma discount to member','%',0,90,0.5,'Off list price; assumption'],['dsD','Diagnostics discount to member','%',0,90,0.5,'Off list price; assumption'],
+  ['ma','AHC margin','%',0,70,0.5,'Assumption, not given'],
+  ['gpCost','Virtual consult cost to the provider','₹',0,500,5,'Illustrative'],['spCost','Speciality consult cost','₹',0,1500,10,'Illustrative']]],
+ ['Consult mechanics',[
+  ['vPrice','Value of one virtual consult (for perceived value)','₹',0,2000,50,'Assumption'],
+  ['gpPrice','List value of one physical GP consult','₹',100,2000,50,'Assumption; debit in paid GP'],
+  ['spPrice','Debit per speciality consult','₹',200,4000,50,'Assumption'],
+  ['spCap','Speciality consults promised','#',0,20,1,''],
+  ['spUsed','Speciality consults used per wallet','#',0,20,0.5,''],
+  ['virt','Virtual consults used per wallet','#',0,24,1,'Unlimited in the brief'],
+  ['gpUnl','GP visits used per wallet','#',0,24,1,'Unlimited GP model only'],
+  ['gpWorst','Worst case: GP visits per wallet','#',0,60,1,'Unlimited GP, fair-use ceiling']]],
+ ['Scenarios and tests',[
+  ['s1','Scenario 1 utilisation','%',0,200,5,''],['s2','Scenario 2 utilisation','%',0,200,5,''],['s3','Scenario 3 utilisation','%',0,200,5,''],['s4','Scenario 4 utilisation','%',0,200,5,''],
+  ['worstVirt','Worst case: virtual consults per wallet','#',0,60,1,'Fair-use ceiling'],
+  ['parF','Par wallet face value (design B)','₹',1000,30000,250,'Product types tab']]],
+ ['Commercial',[
+  ['plat','Platform and servicing cost per wallet','₹',0,1000,10,'Assumption'],
+  ['dist','Distribution / channel cost','%',0,30,0.5,'% of net price, assumption'],
+  ['target','Target contribution margin','%',0,60,1,'']]]
+];
+const $=id=>document.getElementById(id);
+function buildRail(){
+ let h='<div class="grp"><span class="eyebrow">Inputs</span><div class="note">Every field recalculates the P&amp;L. Fields marked as assumptions are not from your brief.</div></div>';
+ for(const [t,fs] of FIELDS){
+  h+=`<div class="grp"><span class="eyebrow">${t}</span>`;
+  if(t.startsWith('Consult'))h+=`<div class="f"><div class="fl">Physical GP consult model</div><select id="gpMode"><option value="paid">Paid GP: debited from the wallet, GP margin earned</option><option value="unl">Unlimited GP: free visits, cost at GP margin</option></select><div class="note">Unlimited GP removes the physical consult bucket from the wallet and prices each visit at the list value less GP margin.</div></div>`;
+  for(const [k,l,u,mn,mx,st,nt] of fs){
+   h+=`<div class="f"><div class="fl"><span>${l}</span><small>${nt}</small></div><div class="in">${u==='₹'?'<span class="u">₹</span>':''}<input type="number" id="n_${k}" step="${st}">${u==='%'?'<span class="u">%</span>':''}</div><input type="range" id="r_${k}" min="${mn}" max="${mx}" step="${st}"></div>`;}
+  if(t.startsWith('Consult')){
+   h+=`<div class="f"><div class="fl">Speciality consults sit</div><select id="spMode"><option value="top">On top of the bucket (free benefit)</option><option value="in">Inside the physical consult bucket</option></select></div>`;}
+  h+='</div>';
+ }
+ $('rail').innerHTML=h;
+ for(const [,fs] of FIELDS)for(const [k] of fs){
+  const n=$('n_'+k),r=$('r_'+k);
+  const set=v=>{S[k]=+v;n.value=v;r.value=v;draw()};
+  n.addEventListener('input',()=>{if(n.value!=='')set(n.value)});
+  r.addEventListener('input',()=>set(r.value));
+ }
+ $('spMode').addEventListener('change',e=>{S.spMode=e.target.value;draw()});
+ $('gpMode').addEventListener('change',e=>{S.gpMode=e.target.value;draw()});
+ syncRail();
+}
+function syncRail(){
+ for(const [,fs] of FIELDS)for(const [k] of fs){$('n_'+k).value=S[k];$('r_'+k).value=S[k]}
+ $('spMode').value=S.spMode;$('gpMode').value=S.gpMode;
+}
+function resetAll(){S={...DEF};syncRail();draw()}
+
+/* ---------- formatting ---------- */
+const IN=n=>Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
+const inr=(n,dp=0)=>(n<0?'−':'')+'₹'+Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+function big(n){const a=Math.abs(n),s=n<0?'−':'';
+ if(a>=1e7)return s+'₹'+(a/1e7).toFixed(2)+' crore';
+ if(a>=1e5)return s+'₹'+(a/1e5).toFixed(2)+' lakh';
+ return inr(n)}
+const pc=(n,d=1)=>(n*100).toFixed(d)+'%';
+const cl=n=>n>=0?'pos':'neg';
+
+/* ---------- model ---------- */
+function calc(s,uOverride){
+ const g=s.gst/100;
+ const net=s.incl?s.P/(1+g):s.P;
+ const gross=s.incl?s.P:s.P*(1+g);
+ const u=uOverride==null?{p:s.up/100,d:s.ud/100,c:s.uc/100,a:s.ua/100}:{p:uOverride,d:uOverride,c:uOverride,a:uOverride};
+ const unl=s.gpMode==='unl',spm=unl?'top':s.spMode,faceEff=unl?Math.max(0,s.F-s.lc):s.F;
+ const spP=s.lp*u.p,spD=s.ld*u.d,spC=unl?0:s.lc*u.c,spA=s.la*u.a;
+ const gpT=s.gp/100,gdT=s.gd/100;
+ const salesP=spP/(1+gpT),salesD=spD/(1+gdT),salesC=spC/(1+s.gc/100),salesA=spA/(1+s.ga/100);
+ const costP=(s.basis==='ex'?salesP:spP)*(1-s.mp/100)/(1-s.dsP/100);
+ const costD=(s.basis==='ex'?salesD:spD)*(1-s.md/100)/(1-s.dsD/100);
+ const costA=s.basis==='ex'?salesA*(1-s.ma/100):spA*(1-s.ma/100);
+ let spUsed=Math.min(s.spUsed,s.spCap),gpVisits,spDebit=0;
+ if(spm==='in'){spUsed=Math.min(spUsed,spC/s.spPrice);spDebit=spUsed*s.spPrice;gpVisits=Math.max(0,spC-spDebit)/s.gpPrice}
+ else gpVisits=unl?s.gpUnl:spC/s.gpPrice;
+ const spCg=spm==='in'?Math.max(0,spC-spDebit):spC;
+ const salesCg=spCg/(1+s.gc/100);
+ const unitGP=s.basis==='ex'?s.gpPrice/(1+s.gc/100):s.gpPrice;
+ const costC=unl?gpVisits*unitGP*(1-s.mc/100):(s.basis==='ex'?salesCg:spCg)*(1-s.mc/100);
+ const costV=s.virt*s.gpCost;
+ const costS=spUsed*s.spCost;
+ const cogs=costP+costD+costC+costA+costV+costS;
+ const gm=net-cogs;
+ const dist=net*s.dist/100;
+ const contrib=gm-s.plat-dist;
+ const spend=spP+spD+spC+spA;
+ const perceived=spP/(1-s.dsP/100)+spD/(1-s.dsD/100)+spC+spA+s.virt*s.vPrice+(unl?gpVisits*s.gpPrice:0)+(spm==='top'?spUsed*s.spPrice:0);
+ const retail=(salesP-costP)+(salesD-costD)+(salesC-costC)+(salesA-costA);
+ return {unl,faceEff,spUsedDebit:spDebit,salesC,salesA,net,gross,spP,spD,spC,spA,costP,costD,costC,costA,costV,costS,cogs,gm,dist,contrib,spend,perceived,gpVisits,spUsed,retail,salesP,salesD,cm:contrib/net};
+}
+function breakeven(s){
+ const f=u=>calc(s,u).contrib;
+ if(f(0)<0)return 0;
+ if(f(3)>0)return null;
+ let a=0,b=3;for(let i=0;i<60;i++){const m=(a+b)/2;f(m)>0?a=m:b=m}return (a+b)/2;
+}
+function worst(s){
+ const w={...s,virt:s.worstVirt,spUsed:s.spCap,gpUnl:s.gpWorst};
+ return calc(w,1);
+}
+
+/* ---------- render ---------- */
+function row(l,v,cls=''){return `<tr class="${cls}"><td class="${cls?'':'l'}">${l}</td><td class="m">${inr(v,0)}</td><td class="m">${big(v*S.N)}</td></tr>`}
+function chart(s){
+ const W=560,H=210,L=52,R=14,T=14,B=30,pts=[];
+ for(let i=0;i<=12;i++){const u=i/10;pts.push([u,calc(s,u).contrib])}
+ const ys=pts.map(p=>p[1]),mn=Math.min(...ys,0),mx=Math.max(...ys,0);
+ const pad=(mx-mn)*0.08||100,y0=mn-pad,y1=mx+pad;
+ const X=u=>L+u/1.2*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+ let d='M'+pts.map(p=>X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' L');
+ const cur=(s.up+s.ud+s.uc+s.ua)/400;
+ const be=breakeven(s);
+ let g='';
+ for(let i=0;i<=6;i++){const v=y0+(y1-y0)*i/6;g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line2)"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end">${IN(v)}</text>`}
+ for(let i=0;i<=12;i+=2)g+=`<text x="${X(i/10)}" y="${H-10}" text-anchor="middle">${i*10}%</text>`;
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Contribution per wallet against utilisation">${g}
+ <line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--faint)" stroke-dasharray="4 3"/>
+ <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+ <circle cx="${X(Math.min(cur,1.2))}" cy="${Y(calc(s,cur).contrib)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+ ${be!=null&&be<=1.2?`<circle cx="${X(be)}" cy="${Y(0)}" r="4.5" fill="var(--amber)" stroke="var(--surface)" stroke-width="2"/>`:''}
+ </svg>`;
+}
+function draw(){
+ const s=S,r=calc(s),be=breakeven(s),w=worst(s);
+ $('spMode').disabled=r.unl;$('gpMode').value=s.gpMode;
+ const paid=r.gross, pool=r.contrib*s.N;
+ const status=r.cm>=s.target/100?['g','Meets target']:r.contrib>=0?['a','Positive, below target']:['r','Loss-making'];
+ const beTxt=be==null?'none up to 300%':pc(be,1);
+ const cur=(s.up+s.ud+s.uc+s.ua)/4;
+ let h=`<section class="kpis">
+ <div class="kpi"><span class="eyebrow">Contribution / wallet</span><span class="v ${cl(r.contrib)}">${inr(r.contrib)}</span><span class="s">${pc(r.cm)} of net price ${inr(r.net,2)}</span></div>
+ <div class="kpi"><span class="eyebrow">Programme total</span><span class="v ${cl(pool)}">${big(pool)}</span><span class="s">${IN(s.N)} wallets</span></div>
+ <div class="kpi"><span class="eyebrow">Break-even utilisation</span><span class="v">${beTxt}</span><span class="s">All four buckets scaled together; now ${cur.toFixed(0)}% on average</span></div>
+ <div class="kpi"><span class="eyebrow">Worst case / wallet</span><span class="v ${cl(w.contrib)}">${inr(w.contrib)}</span><span class="s">${big(w.contrib*s.N)} on all wallets</span></div>
+ </section>
+ <section class="card"><div class="ch"><h2>Bucket-wise utilisation and total Provider cost</h2><p>Every row follows the inputs on the left. Wallet spend is value debited at list price. Virtual and speciality consults are free benefits, so they add cost but no sales.</p></div><div class="tw"><table>
+ <tr><th>Bucket</th><th>Limit</th><th>Utilisation</th><th>Wallet spend</th><th>Sales value</th><th>Provider cost</th><th>Margin earned</th></tr>
+ ${[['Pharma',s.lp,s.up,r.spP,r.salesP,r.costP],['Diagnostics',s.ld,s.ud,r.spD,r.salesD,r.costD],(r.unl?['Physical GP consults (unlimited)','Unlimited',s.gpUnl+' visits',r.spC,r.salesC,r.costC]:['Physical consult (GP)',s.lc,s.uc,r.spC,r.salesC,r.costC]),['AHC package',s.la,s.ua,r.spA,r.salesA,r.costA]].map(b=>`<tr><td>${b[0]}</td><td class="m">${typeof b[1]==='string'?b[1]:inr(b[1])}</td><td class="m">${b[2]}${typeof b[2]==='string'?'':'%'}</td><td class="m">${inr(b[3])}</td><td class="m">${inr(b[4])}</td><td class="m">${inr(b[5])}</td><td class="m ${cl(b[4]-b[5])}">${inr(b[4]-b[5])}</td></tr>`).join('')}
+ <tr class="sub"><td>Wallet buckets subtotal</td><td class="m">${inr(s.lp+s.ld+(r.unl?0:s.lc)+s.la)}</td><td class="m">${((r.spend)/(s.lp+s.ld+(r.unl?0:s.lc)+s.la||1)*100).toFixed(0)}%</td><td class="m">${inr(r.spend)}</td><td class="m">${inr(r.salesP+r.salesD+r.salesC+r.salesA)}</td><td class="m">${inr(r.costP+r.costD+r.costC+r.costA)}</td><td class="m">${inr(r.salesP+r.salesD+r.salesC+r.salesA-r.costP-r.costD-r.costC-r.costA)}</td></tr>
+ <tr><td>Virtual consults (VC)</td><td class="m">Unlimited</td><td class="m">${s.virt} visits × ${inr(s.gpCost)}</td><td class="m">${inr(0)}</td><td class="m">${inr(0)}</td><td class="m">${inr(r.costV)}</td><td class="m neg">${inr(-r.costV)}</td></tr>
+ <tr><td>Speciality consults</td><td class="m">${s.spCap} consults</td><td class="m">${r.spUsed.toFixed(1)} × ${inr(s.spCost)}</td><td class="m">${s.spMode==='in'?'in GP bucket':inr(0)}</td><td class="m">${inr(0)}</td><td class="m">${inr(r.costS)}</td><td class="m neg">${inr(-r.costS)}</td></tr>
+ <tr class="net"><td>Total Provider cost (all services)</td><td class="m"></td><td class="m"></td><td class="m">${inr(r.spend)}</td><td class="m">${inr(r.salesP+r.salesD+r.salesC+r.salesA)}</td><td class="m">${inr(r.cogs)}</td><td class="m ${cl(r.retail-r.costV-r.costS)}">${inr(r.retail-r.costV-r.costS)}</td></tr>
+ </table></div></section>
+ <section class="card"><div class="ch"><h2>Actual margin from total cost</h2><p>Revenue is what the customer pays for the wallet. Cost is the full Provider cost from the table above.</p></div><div class="tw"><table>
+ <tr><th>Line</th><th>Per wallet</th><th>Programme</th><th>% of revenue</th></tr>
+ ${[['Customer revenue',r.net,'sub'],['Total Provider cost incl. VC and speciality',-r.cogs,''],['Margin before platform and distribution',r.gm,'sub'],['Platform and servicing',-s.plat,''],['Distribution cost',-r.dist,''],['Actual margin (contribution)',r.contrib,'net']].map(x=>`<tr class="${x[2]}"><td class="${x[2]?'':'l'}">${x[0]}</td><td class="m ${x[2]==='net'?cl(x[1]):''}">${inr(x[1],2)}</td><td class="m ${x[2]==='net'?cl(x[1]):''}">${big(x[1]*s.N)}</td><td class="m">${pc(x[1]/r.net)}</td></tr>`).join('')}
+ </table></div></section>
+ <section class="two">
+ <div class="card"><div class="ch"><h2>Provider P&amp;L</h2><p>${status[0]==='g'?'':''}<span class="chip ${status[0]}">${status[1]}</span> &nbsp;Revenue is the price the customer pays.</p></div>
+ <div class="tw"><table><tr><th>Line</th><th>Per wallet</th><th>Programme</th></tr>
+ ${row('Wallet revenue',r.net,'sub')}
+ ${row('Pharma cost (spend '+inr(r.spP)+' at '+s.up+'%)',-r.costP)}${row('Diagnostics cost (spend '+inr(r.spD)+' at '+s.ud+'%)',-r.costD)}${row((r.unl?'Unlimited GP cost ('+s.gpUnl+' visits, margin '+s.mc+'%)':'Physical consult cost (spend '+inr(r.spC)+' at '+s.uc+'%, margin '+s.mc+'%)'),-r.costC)}
+ ${row('AHC cost (spend '+inr(r.spA)+' at '+s.ua+'%)',-r.costA)}${row('Virtual consult cost ('+s.virt+' visits)',-r.costV)}${row('Speciality consult cost ('+r.spUsed.toFixed(1)+' consults)',-r.costS)}
+ ${row('Total service cost',-r.cogs,'sub')}
+ ${row('Gross margin',r.gm,'sub')}
+ ${row('Platform and servicing',-s.plat)}${row('Distribution cost',-r.dist)}
+ ${row('Contribution',r.contrib,'net')}
+ </table></div></div>
+ <div class="card"><div class="ch"><h2>Employer / customer view</h2><p>What is paid against what the member can take out, at list value.</p></div>
+ <div class="tw"><table><tr><th>Line</th><th>Per wallet</th><th>Programme</th></tr>
+ ${row('Customer pays',paid,'sub')}
+ ${row('Wallet face value',r.faceEff)}
+ ${row('Spent from buckets at expected use',r.spend)}
+ ${row('Unused face value (breakage)',r.faceEff-r.spend)}
+ ${row('Value incl. virtual and speciality',r.perceived,'sub')}
+ <tr><td class="l">Value per ₹1 paid</td><td class="m">${(r.perceived/paid).toFixed(2)}</td><td class="m"></td></tr>
+ <tr><td class="l">Face value per ₹1 paid</td><td class="m">${(r.faceEff/paid).toFixed(2)}</td><td class="m"></td></tr>
+ <tr><td class="l">Margin earned on redeemed sales</td><td class="m">${inr(r.retail)}</td><td class="m">${big(r.retail*s.N)}</td></tr>
+ </table></div>
+ <div class="pad"><p>Face value per ₹1 paid above 1.00 is the discount the employer sees. Breakage is the unused part of the face value; it is the reason a discounted wallet can pay for itself.</p></div></div>
+ </section>
+ <section class="card"><div class="ch"><h2>Contribution per wallet against utilisation</h2><p>All four buckets move together from 0 to 120%. Green dot is the current setting, amber dot is break-even.</p></div><div class="pad">${chart(s)}</div></section>`;
+ // sensitivity
+ h+=`<section class="card"><div class="ch"><h2>Utilisation scenarios</h2><p>Uniform utilisation on all four buckets. Virtual and speciality use stay as entered.</p></div><div class="tw"><table><tr><th>Utilisation</th><th>Service cost</th><th>Contribution / wallet</th><th>Margin on net price</th><th>Programme</th></tr>`;
+ for(const u of [s.s1,s.s2,s.s3,s.s4].map(x=>x/100)){const c=calc(s,u);h+=`<tr><td>${Math.round(u*100)}%</td><td class="m">${inr(c.cogs)}</td><td class="m ${cl(c.contrib)}">${inr(c.contrib)}</td><td class="m ${cl(c.cm)}">${pc(c.cm)}</td><td class="m ${cl(c.contrib)}">${big(c.contrib*s.N)}</td></tr>`}
+ h+=`<tr class="sub"><td>Worst case (100% all buckets, ${s.worstVirt} virtual, ${s.spCap} speciality)</td><td class="m">${inr(w.cogs)}</td><td class="m ${cl(w.contrib)}">${inr(w.contrib)}</td><td class="m ${cl(w.cm)}">${pc(w.cm)}</td><td class="m ${cl(w.contrib)}">${big(w.contrib*s.N)}</td></tr></table></div></section>`;
+
+ // physical consult margin sensitivity
+ {const ms=Array.from(new Set([10,20,30,40,50,60,s.mc])).sort((a,b)=>a-b);let rows='';
+ for(const m of ms){const s2={...s,mc:m},c=calc(s2),b=breakeven(s2);
+  rows+=`<tr${m===s.mc?' class="sub"':''}><td>${m}%${m===s.mc?' (current)':''}</td><td class="m">${inr(c.costC)}</td><td class="m ${cl(c.contrib)}">${inr(c.contrib)}</td><td class="m ${cl(c.cm)}">${pc(c.cm)}</td><td class="m">${b==null?'none':pc(b,1)}</td><td class="m ${cl(c.contrib)}">${big(c.contrib*s.N)}</td></tr>`}
+ h+=`<section class="card"><div class="ch"><h2>Physical consult margin sensitivity</h2><p>Current utilisation and every other input held; only the physical consult margin changes.</p></div><div class="tw"><table><tr><th>Physical consult margin</th><th>Physical consult cost</th><th>Contribution / wallet</th><th>Margin on net price</th><th>Break-even utilisation</th><th>Programme</th></tr>${rows}</table></div></section>`;}
+ // full walkthrough
+ {const W=[];const add=(st,f,c,res)=>W.push(`<tr><td>${st}</td><td class="tcell">${f}</td><td class="tcell">${c}</td><td class="m"><b>${res}</b></td></tr>`);
+ const g1=1+s.gst/100;
+ add('1. Wallet revenue','Price the customer pays',inr(s.P),inr(r.net,2));
+ add('2. Pharma spend','Limit × utilisation',`${inr(s.lp)} × ${s.up}%`,inr(r.spP,2));
+ add('2a. Pharma sales value','Same as spend',`${inr(r.spP,2)}`,inr(r.salesP,2));
+ add('2b. Pharma cost to the provider',(s.basis==='ex'?'Sales value':'Spend')+' × (1 − margin at list) ÷ (1 − discount)',`${inr(s.basis==='ex'?r.salesP:r.spP,2)} × (1 − ${s.mp}%) ÷ (1 − ${s.dsP}%)`,inr(r.costP,2));
+ add('3. Diagnostics spend','Limit × utilisation',`${inr(s.ld)} × ${s.ud}%`,inr(r.spD,2));
+ add('3a. Diagnostics cost','Spend × (1 − margin at list) ÷ (1 − discount)',`${inr(r.spD,2)} × (1 − ${s.md}%) ÷ (1 − ${s.dsD}%)`,inr(r.costD,2));
+ if(r.unl){
+ add('4. Physical consult spend','Unlimited GP: no wallet debit','No bucket',inr(0,2));
+ add('4a. Unlimited GP visits','Visits used per wallet',`${s.gpUnl} visits`,r.gpVisits.toFixed(2)+' visits');
+ add('4b. Unlimited GP cost','Visits × list value × (1 − GP margin)',`${r.gpVisits.toFixed(2)} × ${inr(s.gpPrice)} × (1 − ${s.mc}%)`,inr(r.costC,2));
+ }else{
+ add('4. Physical consult spend','Limit × utilisation',`${inr(s.lc)} × ${s.uc}%`,inr(r.spC,2));
+  add('4a. Physical GP visits','Spend ÷ debit per visit'+(s.spMode==='in'?' (after speciality debits)':''),`${inr(s.spMode==='in'?r.spC-r.spUsedDebit:r.spC,2)} ÷ ${inr(s.gpPrice)}`,r.gpVisits.toFixed(2)+' visits');
+  add('4b. Physical consult cost','GP spend × (1 − physical consult margin)',`${inr(s.spMode==='in'?r.spC-r.spUsedDebit:r.spC,2)} × (1 − ${s.mc}%)`,inr(r.costC,2));
+ }
+ add('5. AHC spend and cost','Limit × utilisation, then spend × (1 − margin)',`${inr(s.la)} × ${s.ua}% = ${inr(r.spA,2)}; ${inr(r.spA,2)} × (1 − ${s.ma}%)`,inr(r.costA,2));
+ add('6. Virtual consult cost','Visits × virtual consult cost to the provider',`${s.virt} × ${inr(s.gpCost)}`,inr(r.costV,2));
+ add('7. Speciality consult cost','Consults used × speciality cost to the provider',`${r.spUsed.toFixed(2)} × ${inr(s.spCost)}`,inr(r.costS,2));
+ add('8. Total service cost','Sum of steps 2b, 3a, 4b, 5, 6, 7',`${inr(r.costP,2)} + ${inr(r.costD,2)} + ${inr(r.costC,2)} + ${inr(r.costA,2)} + ${inr(r.costV,2)} + ${inr(r.costS,2)}`,inr(r.cogs,2));
+ add('9. Gross margin','Revenue − total service cost',`${inr(r.net,2)} − ${inr(r.cogs,2)}`,inr(r.gm,2));
+ add('10. Distribution cost','Revenue × distribution %',`${inr(r.net,2)} × ${s.dist}%`,inr(r.dist,2));
+ add('11. Contribution','Gross margin − platform − distribution',`${inr(r.gm,2)} − ${inr(s.plat,2)} − ${inr(r.dist,2)}`,inr(r.contrib,2));
+ add('12. Contribution margin','Contribution ÷ revenue',`${inr(r.contrib,2)} ÷ ${inr(r.net,2)}`,pc(r.cm,2));
+ add('13. Programme total','Contribution × wallets',`${inr(r.contrib,2)} × ${IN(s.N)}`,big(r.contrib*s.N));
+ h+=`<section class="card"><div class="ch"><h2>Full calculation, step by step</h2><p>Live: every line uses the inputs on the left. Physical consult margin is ${s.mc}%. Virtual consults cost ${inr(s.gpCost)} and speciality consults ${inr(s.spCost)} each.</p></div><div class="tw"><table><tr><th>Step</th><th>Formula</th><th>With your numbers</th><th>Result</th></tr>${W.join('')}</table></div></section>`;}
+ // formulas
+ const ex=`Pharma: spend ${inr(r.spP)}; cost = ${inr(r.salesP,2)} × (1 − ${s.mp}%) ÷ (1 − ${s.dsP}%) = ${inr(r.costP,2)}`;
+ h+=`<section class="card"><div class="ch"><h2>How the numbers are built</h2><p>Every figure above is one of these formulas with your current inputs.</p></div><div class="tw"><table>
+ <tr><th>Item</th><th>Formula</th><th>Worked example now</th></tr>
+ <tr><td>Revenue</td><td class="tcell">Price the customer pays</td><td class="tcell"><b>${inr(r.net,2)}</b></td></tr>
+ <tr><td>Bucket cost</td><td class="tcell">Limit × utilisation × (1 − margin)</td><td class="tcell">${ex}</td></tr>
+ <tr><td>Effective margin after discount</td><td class="tcell">1 − (1 − margin at list) ÷ (1 − discount)</td><td class="tcell">Pharma: 1 − (1 − ${s.mp}%) ÷ (1 − ${s.dsP}%) = <b>${pc(1-(1-s.mp/100)/(1-s.dsP/100),1)}</b>. Diagnostics: 1 − (1 − ${s.md}%) ÷ (1 − ${s.dsD}%) = <b>${pc(1-(1-s.md/100)/(1-s.dsD/100),1)}</b></td></tr>
+ <tr><td>${r.unl?'Unlimited GP cost':'Physical consult cost'}</td><td class="tcell">${r.unl?'Visits × list value × (1 − GP margin)':'GP spend at expected utilisation × (1 − GP margin)'}</td><td class="tcell">${r.unl?`${r.gpVisits.toFixed(1)} × ${inr(s.gpPrice)} × (1 − ${s.mc}%)`:`${inr(s.spMode==='in'?r.spC-r.spUsedDebit:r.spC,2)} × (1 − ${s.mc}%)`} = <b>${inr(r.costC,2)}</b></td></tr>
+ <tr><td>Virtual and speciality cost</td><td class="tcell">Visits × cost per consult</td><td class="tcell">${s.virt} × ${inr(s.gpCost)} + ${r.spUsed.toFixed(1)} × ${inr(s.spCost)} = <b>${inr(r.costV+r.costS,2)}</b></td></tr>
+ <tr><td>Contribution</td><td class="tcell">Revenue − service cost − platform − distribution</td><td class="tcell">${inr(r.net,2)} − ${inr(r.cogs,2)} − ${inr(s.plat)} − ${inr(r.dist,2)} = <b>${inr(r.contrib,2)}</b></td></tr>
+ <tr><td>Margin</td><td class="tcell">Contribution ÷ revenue</td><td class="tcell">${inr(r.contrib,2)} ÷ ${inr(r.net,2)} = <b>${pc(r.cm,2)}</b></td></tr>
+ </table></div></section>
+ <section class="card"><div class="pad"><p><b>Read before quoting.</b> Every default here is illustrative. Replace margins, costs and utilisation with your own figures. Physical consult margin, AHC margin, debit per consult, platform cost, distribution cost and the number of virtual and speciality consults are assumptions. In the unlimited GP model the physical consult bucket leaves the wallet, so the rupee buckets total ₹7,000 at defaults, and each GP visit is valued at the list value with GP margin applied. Pharma and diagnostics discounts are off list price and default to 0%; the margin inputs are margins at list, so a discount lowers the effective margin and the wallet debits the discounted price. GST is left out of this version. ₹30 per virtual consult looks like a marginal doctor cost, so it ignores doctor capacity, tech and support; confirm the basis with Finance. GST is excluded for now; add it back once Tax confirms the treatment.</p></div></section>`;
+ $('out').innerHTML=h;
+ drawTypes();
+}
+/* ---------- product types ---------- */
+function drawTypes(){
+ const s=S,a=calc(s);
+ // par wallet: face = price (scale limits), same visits
+ const k=s.parF/s.F;
+ const parS={...s,F:s.parF,lp:s.lp*k,ld:s.ld*k,lc:s.lc*k,la:s.la*k};
+ const b=calc(parS);
+ const table=`<div class="card"><div class="ch"><h2>The same inputs under two wallet designs</h2><p>Uses your margins and utilisation. Par wallet scales the bucket limits down so face value equals the price paid.</p></div><div class="tw"><table>
+ <tr><th>Per wallet</th><th>A. Discounted wallet (face ${inr(a.faceEff)} for ${inr(s.P)})</th><th>B. Par wallet (face ${inr(b.faceEff)} for ${inr(s.P)})</th></tr>
+ <tr><td>Revenue</td><td class="m">${inr(a.net)}</td><td class="m">${inr(b.net)}</td></tr>
+ <tr><td>Service cost</td><td class="m">${inr(a.cogs)}</td><td class="m">${inr(b.cogs)}</td></tr>
+ <tr><td>Contribution</td><td class="m ${cl(a.contrib)}">${inr(a.contrib)}</td><td class="m ${cl(b.contrib)}">${inr(b.contrib)}</td></tr>
+ <tr><td>Margin on net price</td><td class="m ${cl(a.cm)}">${pc(a.cm)}</td><td class="m ${cl(b.cm)}">${pc(b.cm)}</td></tr>
+ <tr><td>Face value per ₹1 paid</td><td class="m">${(a.faceEff/a.gross).toFixed(2)}</td><td class="m">${(b.faceEff/b.gross).toFixed(2)}</td></tr>
+ </table></div></div>`;
+
+ const sU={...s,gpMode:'unl'},sP={...s,gpMode:'paid'};
+ const gU=calc(sU),gD=calc(sP),wU=worst(sU),wD=worst(sP),bU=breakeven(sU),bD=breakeven(sP);
+ const gc2=(f)=>`<td class="m">${f[0]}</td><td class="m">${f[1]}</td>`;
+ const gpCard=`<div class="card"><div class="ch"><h2>GP consult model: paid or unlimited</h2><p>Same inputs, same GP margin of ${s.mc}%. Paid GP debits the wallet; unlimited GP gives ${s.gpUnl} visits at list value ${inr(s.gpPrice)} with no bucket.</p></div><div class="tw"><table>
+ <tr><th>Per wallet</th><th>Paid GP (from wallet)</th><th>Unlimited GP</th></tr>
+ <tr><td>Wallet face value</td>${gc2([inr(gD.faceEff),inr(gU.faceEff)])}</tr>
+ <tr><td>GP visits</td>${gc2([gD.gpVisits.toFixed(1),gU.gpVisits.toFixed(1)])}</tr>
+ <tr><td>GP value to the member at list price</td>${gc2([inr(gD.spC),inr(gU.gpVisits*s.gpPrice)])}</tr>
+ <tr><td>GP cost to the provider</td>${gc2([inr(gD.costC),inr(gU.costC)])}</tr>
+ <tr><td>Total service cost</td>${gc2([inr(gD.cogs),inr(gU.cogs)])}</tr>
+ <tr><td>Contribution</td><td class="m ${cl(gD.contrib)}">${inr(gD.contrib)}</td><td class="m ${cl(gU.contrib)}">${inr(gU.contrib)}</td></tr>
+ <tr><td>Margin on net price</td><td class="m ${cl(gD.cm)}">${pc(gD.cm)}</td><td class="m ${cl(gU.cm)}">${pc(gU.cm)}</td></tr>
+ <tr><td>Break-even utilisation</td>${gc2([bD==null?'none':pc(bD,1),bU==null?'none':pc(bU,1)])}</tr>
+ <tr><td>Worst case contribution (${s.gpWorst} GP visits if unlimited)</td><td class="m ${cl(wD.contrib)}">${inr(wD.contrib)}</td><td class="m ${cl(wU.contrib)}">${inr(wU.contrib)}</td></tr>
+ </table></div></div>`;
+ const types=[
+ ['A. Discounted prepaid wallet','Pay '+inr(s.P)+', spend up to '+inr(a.faceEff)+' across buckets.','The provider carries utilisation risk. Profit depends on breakage. Bucket caps and per-member caps are the control.','Employers who want a visible 2x headline.','Break-even at '+(breakeven(s)==null?'no level':pc(breakeven(s),0))+' utilisation on current inputs.'],
+ ['B. Par credit wallet','Pay '+inr(s.P)+', spend '+inr(s.parF)+'. Margin on redemption is the revenue.','Almost no utilisation risk, because every rupee spent carries margin. Loses the headline.','Finance-safe launch; employers who want predictable cost.','Contribution '+inr(b.contrib)+' per wallet on current inputs.'],
+ ['C. Entitlement membership','No cash balance. Fixed visits: virtual, GP, speciality, one AHC, plus a discount card on pharma and diagnostics.','Cost is visits × the per-visit cost you set, which you control. Pharma and diagnostics earn margin only if used.','Employers who want a health benefit with a known cap.','Easy to price, weaker on perceived value.'],
+ ['D. Wallet with employer true-up','Discounted wallet plus a corridor: employer pays extra above a utilisation threshold.','Caps the downside. Needs billing and a clean utilisation report.','Large corporates with HR admin.','Keeps the headline and bounds loss. More operations.'],
+ ['E. Employer deposit (pay as used)','Employer funds a deposit; Provider bills as members use it, unused balance is refunded or rolled.','No breakage at all. Margin only.','Enterprises that will not prepay.','Safe, but no discount economics and cash is delayed.'],
+ ['F. Wallet with unlimited GP','Pay '+inr(s.P)+'. Physical GP visits are unlimited and sit outside the wallet; pharma, diagnostics and AHC stay as buckets.','The provider carries visit-volume risk. Needs a fair-use cap and a visit-level report.','Employers who want a simple headline of unlimited doctor access.','Contribution '+inr(gU.contrib)+' per wallet at '+s.gpUnl+' GP visits.'],
+ ['G. Wallet with paid GP','Pay '+inr(s.P)+'. Physical GP visits debit the wallet at list value; The provider earns the GP margin of '+s.mc+'%.','Risk is capped at the bucket size; unused GP bucket is breakage.','Employers who want controlled spend per member.','Contribution '+inr(gD.contrib)+' per wallet at '+s.uc+'% GP bucket use.']];
+ let t=`<div class="card"><div class="ch"><h2>Which wallet products Provider can sell</h2><p>Seven designs. F and G are the two GP models, calculated live on your inputs.</p></div><div class="tw"><table>
+ <tr><th>Type</th><th>How it works</th><th>Who carries risk</th><th>Best for</th><th>Result</th></tr>`;
+ for(const x of types)t+=`<tr><td><b>${x[0]}</b></td><td class="tcell">${x[1]}</td><td class="tcell">${x[2]}</td><td class="tcell">${x[3]}</td><td class="tcell">${x[4]}</td></tr>`;
+ t+='</table></div></div>';
+ $('types').innerHTML=table+gpCard+t+`<div class="card"><div class="pad"><p>Cost as a share of sales on your inputs: pharma ${((1-s.mp/100)/(1-s.dsP/100)*100).toFixed(0)}%, diagnostics ${((1-s.md/100)/(1-s.dsD/100)*100).toFixed(0)}%, AHC ${(100-s.ma)}%. Physical consults cost ${(100-s.mc)}% of sales; virtual consults cost ${inr(s.gpCost)} and speciality consults ${inr(s.spCost)} per visit. Change any input on the P&amp;L tab and this tab updates.</p></div></div>`;
+}
+function tab(t){
+ $('v-sim').hidden=t!=='sim';$('v-types').hidden=t!=='types';
+ $('t-sim').classList.toggle('on',t==='sim');$('t-types').classList.toggle('on',t==='types');
+}
+buildRail();draw();
+</script>
+
+</body>
+</html>
